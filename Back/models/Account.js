@@ -1,3 +1,4 @@
+// models/Account.js
 import mongoose from "mongoose";
 
 const accountSchema = new mongoose.Schema(
@@ -11,12 +12,18 @@ const accountSchema = new mongoose.Schema(
       type: String,
       required: true,
     },
-    initialBalance:{
+    type: { // 
+      type: String,
+      enum: ["CARD", "CASH", "SAVINGS"],
+      required: true
+    },
+    initialBalance: {
       type: Number,
       default: 0
     },
     balance: {
       type: Number,
+      default: 0 // 
     },
   },
   { timestamps: true }

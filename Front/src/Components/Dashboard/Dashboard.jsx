@@ -1,5 +1,11 @@
+// src/Components/Dashboard/Dashboard.jsx
 import React, { useEffect, useState } from "react";
 import axios from "axios";
+import Income from "./IncomeCard.jsx";
+import Expense from "./ExpenseCard.jsx";
+import Profit from "./ProfitCard.jsx";
+import MyWallet from "./MyWallet.jsx";
+import RecentTransactions from "./RecentTransactions.jsx";  
 
 function Dashboard() {
   const [userData, setUserData] = useState(null);
@@ -106,40 +112,111 @@ function Dashboard() {
       alert("Please select a category");
       return;
     }
+    
     const token = localStorage.getItem("token");
+    console.log("🔑 Token:", token);
+    console.log("📤 Sending data:", newTransaction);
+    
     try {
+      // ✅ Categories fetch
+      const categoriesRes = await axios.get("http://localhost:4000/api/categories/income", {
+        headers: { Authorization: `Bearer ${token}` },
+      });
+      
+      console.log("📊 Categories FULL response:", categoriesRes.data);
+      console.log("📊 Categories array:", categoriesRes.data.categories);
+      
+      // ✅ Data structure check
+      const categories = categoriesRes.data.categories || [];
+      let category;
+      
+      if (categories.length > 0 && typeof categories[0] === 'string') {
+        // যদি array of strings হয়
+        console.log("ℹ️ Categories are strings, using category name as ID");
+        category = { _id: newTransaction.category, name: newTransaction.category };
+      } else {
+        // যদি array of objects হয়
+        category = categories.find(cat => cat.name === newTransaction.category);
+      }
+      
+      if (!category) {
+        alert("Category not found: " + newTransaction.category);
+        return;
+      }
+
+      // ✅ Accounts fetch
+      const accountsRes = await axios.get("http://localhost:4000/api/accounts", {
+        headers: { Authorization: `Bearer ${token}` },
+      });
+      
+      console.log("🏦 Accounts FULL response:", accountsRes.data);
+      console.log("🏦 Accounts array:", accountsRes.data.accounts);
+      
+      const account = accountsRes.data.accounts?.find(acc => acc.name === newTransaction.account);
+      if (!account) {
+        alert("Account not found: " + newTransaction.account);
+        return;
+      }
+
+      console.log("🎯 Final data to send:", {
+        sourceId: category._id,
+        accountId: account._id,
+        amount: parseFloat(newTransaction.amount),
+        description: newTransaction.description
+      });
+
       const response = await axios.post(
-        "http://localhost:4000/api/transactions",
+        "http://localhost:4000/api/income",
         {
-          ...newTransaction,
+          sourceId: category._id,
+          accountId: account._id,
           amount: parseFloat(newTransaction.amount),
-          date: new Date().toISOString(),
+          description: newTransaction.description,
         },
         {
-          headers: { Authorization: `Bearer ${token}` },
+          headers: { 
+            Authorization: `Bearer ${token}`,
+            'Content-Type': 'application/json'
+          },
         }
       );
+      console.log("✅ Success:", response.data);
 
-      setTransactions([response.data, ...transactions]);
+      // Update transactions list
+      setTransactions(prev => [response.data.transaction, ...prev]);
       setShowAddModal(false);
 
+      // Update wallet balance
       const amt = parseFloat(newTransaction.amount);
       const acc = newTransaction.account;
       setWalletBalances((prev) => ({
         ...prev,
         [acc]: newTransaction.type === "income" ? prev[acc] + amt : prev[acc] - amt,
       }));
+
+      // Update user overall balance
       if (userData) {
         setUserData((prev) => ({
           ...prev,
-          overallBalance:
-            newTransaction.type === "income"
-              ? prev.overallBalance + amt
-              : prev.overallBalance - amt,
+          overallBalance: newTransaction.type === "income" 
+            ? prev.overallBalance + amt 
+            : prev.overallBalance - amt,
         }));
       }
+
+      // Reset form
+      setNewTransaction({
+        description: "",
+        amount: "",
+        category: "",
+        type: "income",
+        account: "",
+      });
+
     } catch (e) {
-      alert("Failed to add transaction");
+      console.error("❌ Error:", e.response?.data);
+      console.error("❌ Error details:", e);
+      alert("Failed to add transaction: " + (e.response?.data?.message || e.message));
     }
   };
 
@@ -406,224 +483,30 @@ function Dashboard() {
 
         {/* Financial Overview Cards */}
         <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
-          {/* Income Card */}
-          <div className="bg-white rounded-2xl p-6 shadow-lg border-l-4 border-green-500 hover:shadow-xl transition-shadow">
-            <div className="flex items-center justify-between mb-4">
-              <h3 className="text-gray-500 font-medium">Income</h3>
-              <div className="w-10 h-10 bg-green-100 rounded-lg flex items-center justify-center">
-                <svg
-                  className="w-5 h-5 text-green-600"
-                  fill="none"
-                  stroke="currentColor"
-                  viewBox="0 0 24 24"
-                >
-                  <path
-                    strokeLinecap="round"
-                    strokeLinejoin="round"
-                    strokeWidth={2}
-                    d="M12 8c-1.657 0-3 .895-3 2s1.343 2 3 2 3 .895 3 2-1.343 2-3 2m0-8c1.11 0 2.08.402 2.599 1M12 8V7m0 1v8m0 0v1m0-1c-1.11 0-2.08-.402-2.599-1"
-                  />
-                </svg>
-              </div>
-            </div>
-            <p className="text-3xl font-bold text-gray-900">${income.toFixed(2)}</p>
-            <button
-              onClick={() => handleAddTransaction("income")}
-              className="mt-4 w-full bg-green-500 hover:bg-green-600 text-white py-2 rounded-lg font-medium transition-colors"
-            >
-              Add Income
-            </button>
-          </div>
-
-          {/* Expense Card */}
-          <div className="bg-white rounded-2xl p-6 shadow-lg border-l-4 border-red-500 hover:shadow-xl transition-shadow">
-            <div className="flex items-center justify-between mb-4">
-              <h3 className="text-gray-500 font-medium">Expenses</h3>
-              <div className="w-10 h-10 bg-red-100 rounded-lg flex items-center justify-center">
-                <svg
-                  className="w-5 h-5 text-red-600"
-                  fill="none"
-                  stroke="currentColor"
-                  viewBox="0 0 24 24"
-                >
-                  <path
-                    strokeLinecap="round"
-                    strokeLinejoin="round"
-                    strokeWidth={2}
-                    d="M15 17h5l-1.405-1.405A2.032 2.032 0 0118 14.158V11a6.002 6.002 0 00-4-5.659V5a2 2 0 10-4 0v.341C7.67 6.165 6 8.388 6 11v3.159c0 .538-.214 1.055-.595 1.436L4 17h5m6 0v1a3 3 0 11-6 0v-1m6 0H9"
-                  />
-                </svg>
-              </div>
-            </div>
-            <p className="text-3xl font-bold text-gray-900">${expenses.toFixed(2)}</p>
-            <button
-              onClick={() => handleAddTransaction("expense")}
-              className="mt-4 w-full bg-red-500 hover:bg-red-600 text-white py-2 rounded-lg font-medium transition-colors"
-            >
-              Add Expense
-            </button>
-          </div>
-
-          {/* Profit Card */}
-          <div className="bg-white rounded-2xl p-6 shadow-lg border-l-4 border-blue-500 hover:shadow-xl transition-shadow">
-            <div className="flex items-center justify-between mb-4">
-              <h3 className="text-gray-500 font-medium">Net Balance</h3>
-              <div className="w-10 h-10 bg-blue-100 rounded-lg flex items-center justify-center">
-                <svg
-                  className="w-5 h-5 text-blue-600"
-                  fill="none"
-                  stroke="currentColor"
-                  viewBox="0 0 24 24"
-                >
-                  <path
-                    strokeLinecap="round"
-                    strokeLinejoin="round"
-                    strokeWidth={2}
-                    d="M9 19v-6a2 2 0 00-2-2H5a2 2 0 00-2 2v6a2 2 0 002 2h2a2 2 0 002-2zm0 0V9a2 2 0 012-2h2a2 2 0 012 2v10m-6 0a2 2 0 002 2h2a2 2 0 002-2m0 0V5a2 2 0 012-2h2a2 2 0 012 2v14a2 2 0 01-2 2h-2a2 2 0 01-2-2z"
-                  />
-                </svg>
-              </div>
-            </div>
-            <p className={`text-3xl font-bold ${profit >= 0 ? "text-green-600" : "text-red-600"}`}>
-              {profit >= 0 ? "+" : ""}
-              ${profit.toFixed(2)}
-            </p>
-            <button className="mt-4 w-full bg-blue-500 hover:bg-blue-600 text-white py-2 rounded-lg font-medium transition-colors">
-              View Reports
-            </button>
-          </div>
+          <Income 
+            income={income} 
+            onAddIncome={() => handleAddTransaction("income")} 
+          />
+          
+          <Expense 
+            expenses={expenses} 
+            onAddExpense={() => handleAddTransaction("expense")} 
+          />
+          
+          <Profit profit={profit} />
         </div>
 
         {/* My Wallet Section */}
-        <div className="bg-white rounded-2xl p-6 shadow-lg">
-          <div 
-            className="flex justify-between items-center cursor-pointer mb-4"
-            onClick={() => setWalletOpen(!walletOpen)}
-          >
-            <h3 className="text-xl font-bold text-gray-900">MY WALLET</h3>
-            <div className="flex items-center space-x-2">
-              <span className="text-sm text-gray-600">
-                Total: ${userData?.overallBalance?.toFixed(2) || "0.00"}
-              </span>
-              <svg 
-                className={`w-5 h-5 text-gray-500 transition-transform ${walletOpen ? 'rotate-180' : ''}`}
-                fill="none" 
-                stroke="currentColor" 
-                viewBox="0 0 24 24"
-              >
-                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 9l-7 7-7-7" />
-              </svg>
-            </div>
-          </div>
-          
-          {walletOpen && (
-            <div className="grid grid-cols-1 md:grid-cols-3 gap-4 mt-4">
-              {Object.entries(walletBalances).map(([account, balance]) => (
-                <div 
-                  key={account} 
-                  className="border border-gray-200 rounded-xl p-4 hover:shadow-md transition-shadow"
-                >
-                  <div className="flex items-center space-x-3 mb-3">
-                    <div className={`w-12 h-12 rounded-lg flex items-center justify-center ${accountConfig[account].color}`}>
-                      {accountConfig[account].icon}
-                    </div>
-                    <div>
-                      <h4 className="font-semibold text-gray-900">{account}</h4>
-                      <p className="text-xs text-gray-500">{accountConfig[account].description}</p>
-                    </div>
-                  </div>
-                  <div className="text-right">
-                    <p className="text-2xl font-bold text-gray-900">${balance.toFixed(2)}</p>
-                    <p className="text-sm text-gray-500">Available Balance</p>
-                  </div>
-                </div>
-              ))}
-            </div>
-          )}
-        </div>
+        <MyWallet 
+          walletOpen={walletOpen}
+          setWalletOpen={setWalletOpen}
+          walletBalances={walletBalances}
+          accountConfig={accountConfig}
+          userData={userData}
+        />
 
         {/* Recent Transactions */}
-        <div className="bg-white rounded-2xl shadow-lg p-6">
-          <div className="flex justify-between items-center mb-6">
-            <h3 className="text-xl font-bold text-gray-900">Recent Transactions</h3>
-            <button className="text-blue-600 hover:text-blue-700 font-medium">View All</button>
-          </div>
-          {!transactions || transactions.length === 0 ? (
-            <div className="text-center py-8">
-              <svg
-                className="w-16 h-16 text-gray-400 mx-auto mb-4"
-                fill="none"
-                stroke="currentColor"
-                viewBox="0 0 24 24"
-              >
-                <path
-                  strokeLinecap="round"
-                  strokeLinejoin="round"
-                  strokeWidth={2}
-                  d="M9 17v-2m3 2v-4m3 4v-6m2 10H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z"
-                />
-              </svg>
-              <p className="text-gray-600">No transactions found.</p>
-              <p className="text-sm text-gray-500 mt-2">Start by adding your first transaction!</p>
-            </div>
-          ) : (
-            <div className="space-y-4 overflow-auto max-h-96">
-              {transactions.slice(0, 5).map((trx) => (
-                <div
-                  key={trx._id}
-                  className="flex items-center justify-between p-4 hover:bg-gray-50 rounded-lg transition-colors border border-gray-100"
-                >
-                  <div className="flex items-center space-x-4">
-                    <div
-                      className={`w-10 h-10 rounded-full flex items-center justify-center ${
-                        trx.type === "income" ? "bg-green-100" : "bg-red-100"
-                      }`}
-                    >
-                      <svg
-                        className={`w-5 h-5 ${
-                          trx.type === "income" ? "text-green-600" : "text-red-600"
-                        }`}
-                        fill="none"
-                        stroke="currentColor"
-                        viewBox="0 0 24 24"
-                      >
-                        {trx.type === "income" ? (
-                          <path
-                            strokeLinecap="round"
-                            strokeLinejoin="round"
-                            strokeWidth={2}
-                            d="M12 8c-1.657 0-3 .895-3 2s1.343 2 3 2 3 .895 3 2-1.343 2-3 2m0-8c1.11 0 2.08.402 2.599 1M12 8V7m0 1v8m0 0v1m0-1c-1.11 0-2.08-.402-2.599-1"
-                          />
-                        ) : (
-                          <path
-                            strokeLinecap="round"
-                            strokeLinejoin="round"
-                            strokeWidth={2}
-                            d="M15 17h5l-1.405-1.405A2.032 2.032 0 0118 14.158V11a6.002 6.002 0 00-4-5.659V5a2 2 0 10-4 0v.341C7.67 6.165 6 8.388 6 11v3.159c0 .538-.214 1.055-.595 1.436L4 17h5m6 0v1a3 3 0 11-6 0v-1m6 0H9"
-                          />
-                        )}
-                      </svg>
-                    </div>
-                    <div>
-                      <p className="font-medium text-gray-900">{trx.description || "-"}</p>
-                      <p className="text-sm text-gray-500">
-                        {trx.category} • {new Date(trx.date).toLocaleDateString()}
-                      </p>
-                      <p className="text-xs text-gray-400 italic">Account: {trx.account || "Not specified"}</p>
-                    </div>
-                  </div>
-                  <div
-                    className={`text-right font-semibold ${
-                      trx.type === "income" ? "text-green-600" : "text-red-600"
-                    }`}
-                  >
-                    {trx.type === "income" ? "+" : "-"}${trx.amount.toFixed(2)}
-                  </div>
-                </div>
-              ))}
-            </div>
-          )}
-        </div>
+        <RecentTransactions transactions={transactions} />
       </main>
     </div>
   );

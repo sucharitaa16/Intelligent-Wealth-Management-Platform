@@ -3,8 +3,12 @@ import express from 'express';
 import jwt from 'jsonwebtoken';
 import User from '../models/User.js';
 import Otp from '../models/Otp.js';
+import Income from "../models/Income.js";
+import Expense from "../models/Expense.js";
+
 import { generateOTP } from '../utils/otpGenerator.js';
 import { sendOtpEmail } from '../utils/sendEmail.js';
+import { initDefaultAccounts } from "../controllers/accountController.js";
 
 const router = express.Router();
 
@@ -30,12 +34,67 @@ router.post('/register', async (req, res) => {
       password,
     });
 
+    const defaultIncomes = [
+      "Awards",
+      "Coupons",
+      "Grants",
+      "Lottery",
+      "Refunds",
+      "Rental",
+      "Salary",
+      "Sell",
+    ];
+
+    const defaultExpenses = [
+      "Baby",
+      "Beauty",
+      "Bills",
+      "Car",
+      "Clothing",
+      "Education",
+      "Electronics",
+      "Entertainment",
+      "Food",
+      "Health",
+      "Home",
+      "Insurance",
+      "Shopping",
+      "Social",
+      "Sport",
+      "Tax",
+      "Telephone",
+      "Transportation",
+    ];
+
+    // ✅ Convert strings to objects before insert
+    const incomeDocs = defaultIncomes.map((name) => ({
+      userId: user._id,
+      name,
+      isDefault: true,
+    }));
+
+    const expenseDocs = defaultExpenses.map((name) => ({
+      userId: user._id,
+      name,
+      isDefault: true,
+    }));
+
+    await Income.insertMany(incomeDocs);
+
+    console.log("Incomes created");
+    await Expense.insertMany(expenseDocs);
+    console.log("Expenses created");
+
+    await initDefaultAccounts(user._id);
+    console.log("Accounts initialized");
+
     // Generate JWT token
     const token = jwt.sign(
       { userId: user._id },
       process.env.JWT_SECRET,
       { expiresIn: '30d' }
     );
+
 
     res.status(201).json({
       message: 'User registered successfully',
@@ -426,5 +485,33 @@ router.get('/test-email', async (req, res) => {
     });
   }
 });
+
+
+router.delete('/:id', async (req, res) => {
+  try {
+    const userId = req.user; // from JWT middleware
+
+
+    // Delete all accounts related to this user
+    await Account.deleteMany({ userId });
+
+
+
+    await Transaction.deleteMany({ userId });
+    await Income.deleteMany({ userId });
+    await Expense.deleteMany({ userId });
+
+
+    // Delete the user
+    await User.findByIdAndDelete(userId);
+
+
+    res.json({ message: "User and all associated accounts deleted successfully" });
+  } catch (err) {
+    console.error("Delete User Error:", err);
+    res.status(500).json({ error: "Failed to delete user" });
+  }
+});
+
 
 export default router;

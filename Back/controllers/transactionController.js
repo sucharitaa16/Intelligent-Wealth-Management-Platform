@@ -1,6 +1,96 @@
+// controllers/transactionController.js
 import Transaction from "../models/Transaction.js";
 import User from "../models/User.js";
+import Account from "../models/Account.js";
 
+
+// 
+export const createTransaction = async (req, res) => {
+  try {
+    const { description, amount, type, category, account, date } = req.body;
+    const userId = req.user; // from JWT middleware
+
+    // Validate required fields
+    if (!description || !amount || !type || !category || !account) {
+      return res.status(400).json({ 
+        message: 'All fields are required: description, amount, type, category, account' 
+      });
+    }
+
+    // Validate amount
+    const amountNum = parseFloat(amount);
+    if (isNaN(amountNum) || amountNum <= 0) {
+      return res.status(400).json({ 
+        message: 'Amount must be a positive number' 
+      });
+    }
+
+    // Validate type
+    if (!['income', 'expense'].includes(type)) {
+      return res.status(400).json({ 
+        message: 'Type must be either income or expense' 
+      });
+    }
+
+    // Find user account by name (CARD, CASH, SAVINGS)
+    const userAccount = await Account.findOne({ 
+      userId: userId, 
+      name: account 
+    });
+
+    if (!userAccount) {
+      return res.status(404).json({ 
+        message: 'Account not found' 
+      });
+    }
+
+    // Create transaction
+    const transaction = await Transaction.create({
+      userId: userId,
+      accountId: userAccount._id,
+      title: description,
+      description,
+      amount: amountNum,
+      type,
+      category,
+      account,
+      date: date ? new Date(date) : new Date()
+    });
+
+    // Update account balance
+    if (type === 'income') {
+      userAccount.balance += amountNum;
+    } else if (type === 'expense') {
+      userAccount.balance -= amountNum;
+    }
+    await userAccount.save();
+
+    // Update user's overall balance
+    const user = await User.findById(userId);
+    if (user) {
+      if (type === 'income') {
+        user.overallBalance += amountNum;
+      } else if (type === 'expense') {
+        user.overallBalance -= amountNum;
+      }
+      await user.save();
+    }
+
+    res.status(201).json({
+      message: `${type.charAt(0).toUpperCase() + type.slice(1)} added successfully`,
+      transaction
+    });
+
+  } catch (error) {
+    console.error('Transaction creation error:', error);
+    res.status(500).json({ 
+      message: 'Error creating transaction', 
+      error: error.message 
+    });
+  }
+};
+
+// Existing functions...
 export const getUserTransactions = async (req, res) => {
   try {
     const userId = req.user; // from JWT middleware
