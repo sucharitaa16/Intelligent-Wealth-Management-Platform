@@ -131,11 +131,11 @@ function Dashboard() {
       let category;
       
       if (categories.length > 0 && typeof categories[0] === 'string') {
-        // যদি array of strings হয়
+        // array of strings
         console.log("ℹ️ Categories are strings, using category name as ID");
         category = { _id: newTransaction.category, name: newTransaction.category };
       } else {
-        // যদি array of objects হয়
+        // array of objects 
         category = categories.find(cat => cat.name === newTransaction.category);
       }
       
