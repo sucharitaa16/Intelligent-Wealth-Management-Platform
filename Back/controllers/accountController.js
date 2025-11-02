@@ -5,16 +5,21 @@ import User from "../models/User.js";
 export const initDefaultAccounts = async (userId) => {
   try {
     const defaults = [
-      { name: "Cash", balance: 0 },
-      { name: "Card", balance: 0 },
-      { name: "Savings", balance: 0 },
+      { name: "Cash", type: "CASH", balance: 0 },
+      { name: "Card", type: "CARD", balance: 0 },
+      { name: "Savings", type: "SAVINGS", balance: 0 },
     ];
 
     // Insert accounts only if not already existing
     for (const acc of defaults) {
       const exists = await Account.findOne({ userId, name: acc.name });
       if (!exists) {
-        await Account.create({ userId, name: acc.name, balance: acc.balance });
+        await Account.create({ 
+          userId, 
+          name: acc.name, 
+          type: acc.type, // ✅ TYPE ADD KORCHI
+          balance: acc.balance 
+        });
       }
     }
 
@@ -36,9 +41,6 @@ export const getAccounts = async (req, res) => {
 };
 
 // ✏️ Update balance of an account (default or custom)
-
-
-
 export const updateAccount = async (req, res) => {
   try {
     const { id } = req.params;
@@ -84,6 +86,7 @@ export const addCard = async (req, res) => {
       userId,
       name: name || "CustomCard",
       balance: balance || 0
+      // type field optional, so na dileo hobe
     });
 
     // Recalculate the user's total balance
@@ -130,9 +133,3 @@ export const deleteAccount = async (req, res) => {
     res.status(500).json({ error: "Failed to delete account" });
   }
 };
-
-
-
-
-
-

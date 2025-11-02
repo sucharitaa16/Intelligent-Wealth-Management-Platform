@@ -1,4 +1,3 @@
-// models/Account.js
 import mongoose from "mongoose";
 
 const accountSchema = new mongoose.Schema(
@@ -12,10 +11,11 @@ const accountSchema = new mongoose.Schema(
       type: String,
       required: true,
     },
-    type: { // 
+    // ✅ TYPE FIELD ADD KORCHI BUT OPTIONAL KORE
+    type: {
       type: String,
-      enum: ["CARD", "CASH", "SAVINGS"],
-      required: true
+      enum: ["Card", "Cash", "Savings"],
+      // required: false // Optional rakhi apnar existing code er sathe compatible korar jonne
     },
     initialBalance: {
       type: Number,
@@ -23,7 +23,7 @@ const accountSchema = new mongoose.Schema(
     },
     balance: {
       type: Number,
-      default: 0 // 
+      default: 0
     },
   },
   { timestamps: true }

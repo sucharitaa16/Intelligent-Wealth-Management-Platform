@@ -1,10 +1,12 @@
-// routes/userRoutes.js
 import express from 'express';
 import jwt from 'jsonwebtoken';
 import User from '../models/User.js';
 import Otp from '../models/Otp.js';
 import Income from "../models/Income.js";
 import Expense from "../models/Expense.js";
+import Account from "../models/Account.js";
+import Transaction from "../models/Transaction.js";
+import { authMiddleware } from '../middleware/auth.js';
 
 import { generateOTP } from '../utils/otpGenerator.js';
 import { sendOtpEmail } from '../utils/sendEmail.js';
@@ -160,23 +162,39 @@ router.post('/login', async (req, res) => {
   }
 });
 
-// Get user profile
-router.get('/profile', async (req, res) => {
+// Get user profile - UPDATED
+router.get('/profile', authMiddleware, async (req, res) => {
   try {
-    const token = req.header('Authorization')?.replace('Bearer ', '');
-    
-    if (!token) {
-      return res.status(401).json({ message: 'No token, authorization denied' });
-    }
-
-    const decoded = jwt.verify(token, process.env.JWT_SECRET);
-    const user = await User.findById(decoded.userId).select('-password');
+    const user = await User.findById(req.user).select('-password');
     
     if (!user) {
       return res.status(404).json({ message: 'User not found' });
     }
 
-    res.json(user);
+    // ✅ Get account balances from Account model
+    const accounts = await Account.find({ userId: user._id });
+    
+    // Find accounts by name (apnar existing structure er sathe compatible)
+    const cardAccount = accounts.find(acc => acc.name === "Card" || acc.type === "CARD");
+    const cashAccount = accounts.find(acc => acc.name === "Cash" || acc.type === "CASH");
+    const savingsAccount = accounts.find(acc => acc.name === "Savings" || acc.type === "SAVINGS");
+
+    const profileResponse = {
+      id: user._id,
+      name: user.name,
+      email: user.email,
+      overallBalance: user.overallBalance || 0,
+      // ✅ EI 3 TA FIELD ADD KORCHI
+      cardBalance: cardAccount ? cardAccount.balance : 0,
+      cashBalance: cashAccount ? cashAccount.balance : 0,
+      savingsBalance: savingsAccount ? savingsAccount.balance : 0,
+      createdAt: user.createdAt,
+      updatedAt: user.updatedAt
+    };
+
+    console.log('👤 User profile with wallet balances:', profileResponse);
+    res.json(profileResponse);
+
   } catch (error) {
     console.error('Profile error:', error);
     res.status(500).json({ 
@@ -187,16 +205,9 @@ router.get('/profile', async (req, res) => {
 });
 
 // Update user profile
-router.put('/profile', async (req, res) => {
+router.put('/profile', authMiddleware, async (req, res) => {
   try {
-    const token = req.header('Authorization')?.replace('Bearer ', '');
-    
-    if (!token) {
-      return res.status(401).json({ message: 'No token, authorization denied' });
-    }
-
-    const decoded = jwt.verify(token, process.env.JWT_SECRET);
-    const user = await User.findById(decoded.userId);
+    const user = await User.findById(req.user);
     
     if (!user) {
       return res.status(404).json({ message: 'User not found' });
@@ -486,25 +497,20 @@ router.get('/test-email', async (req, res) => {
   }
 });
 
-
-router.delete('/:id', async (req, res) => {
+// Delete user and all associated data
+router.delete('/', authMiddleware, async (req, res) => {
   try {
     const userId = req.user; // from JWT middleware
 
-
     // Delete all accounts related to this user
     await Account.deleteMany({ userId });
-
-
 
     await Transaction.deleteMany({ userId });
     await Income.deleteMany({ userId });
     await Expense.deleteMany({ userId });
 
-
     // Delete the user
     await User.findByIdAndDelete(userId);
-
 
     res.json({ message: "User and all associated accounts deleted successfully" });
   } catch (err) {
@@ -512,6 +518,5 @@ router.delete('/:id', async (req, res) => {
     res.status(500).json({ error: "Failed to delete user" });
   }
 });
-
 
 export default router;
