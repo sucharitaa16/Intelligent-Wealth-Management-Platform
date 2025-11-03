@@ -5,9 +5,9 @@ import User from "../models/User.js";
 export const initDefaultAccounts = async (userId) => {
   try {
     const defaults = [
-      { name: "Cash", type: "CASH", balance: 0 },
-      { name: "Card", type: "CARD", balance: 0 },
-      { name: "Savings", type: "SAVINGS", balance: 0 },
+      { name: "Cash", type: "Cash", balance: 0 },
+      { name: "Card", type: "Card", balance: 0 },
+      { name: "Savings", type: "Savings", balance: 0 },
     ];
 
     // Insert accounts only if not already existing

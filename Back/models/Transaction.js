@@ -15,7 +15,9 @@ const transactionSchema = new mongoose.Schema({
   account: {
     type: String,
     enum: ["Card", "Cash", "Savings"]
-  }
+  },
+  description: {type: String}
+
 });
 
 export default mongoose.model("Transaction", transactionSchema);

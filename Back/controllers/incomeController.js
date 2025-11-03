@@ -6,7 +6,7 @@ import Income from "../models/Income.js";
 export const addIncome = async (req, res) => {
   try {
     const userId = req.user; 
-    const { accountId, sourceId, amount } = req.body;
+    const { accountId, sourceId, amount, description } = req.body;
 
     if (!accountId || !sourceId || !amount) {
       return res.status(400).json({ message: "All fields are required" });
@@ -42,6 +42,7 @@ export const addIncome = async (req, res) => {
       type: "income",
       sourceId,
       date: new Date(),
+      description
     });
 
     return res.status(200).json({
@@ -54,9 +55,6 @@ export const addIncome = async (req, res) => {
     return res.status(500).json({ message: "Server error" });
   }
 };
-
-// controllers/incomeController.js
-
 
 export const addIncomeCategory = async (req, res) => {
   try {
@@ -101,7 +99,6 @@ export const getIncomes = async (req, res) => {
   }
 };
 
-
 export const updateIncomeName = async (req, res) => {
   try {
     const userId = req.user; // from JWT
@@ -130,8 +127,6 @@ export const updateIncomeName = async (req, res) => {
     res.status(500).json({ success: false, message: "Server error" });
   }
 };
-
-
 
 export const getMonthlyIncomeSummary = async (req, res) => {
   try {
@@ -189,6 +184,3 @@ export const getMonthlyIncomeSummary = async (req, res) => {
     res.status(500).json({ message: "Server error", error });
   }
 };
-
-
-

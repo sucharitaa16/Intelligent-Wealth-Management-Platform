@@ -3,12 +3,10 @@ import Transaction from "../models/Transaction.js";
 import User from "../models/User.js";
 import Account from "../models/Account.js";
 
-
-// 
 export const createTransaction = async (req, res) => {
   try {
     const { description, amount, type, category, account, date } = req.body;
-    const userId = req.user; // from JWT middleware
+    const userId = req.user;
 
     // Validate required fields
     if (!description || !amount || !type || !category || !account) {
@@ -32,7 +30,7 @@ export const createTransaction = async (req, res) => {
       });
     }
 
-    // Find user account by name (CARD, CASH, SAVINGS)
+    // Find user account by name (Cash, Card, Savings)
     const userAccount = await Account.findOne({ 
       userId: userId, 
       name: account 
@@ -52,8 +50,8 @@ export const createTransaction = async (req, res) => {
       description,
       amount: amountNum,
       type,
-      category,
-      account,
+      category, // This is now stored directly in the transaction
+      account,  // This is now stored directly in the transaction
       date: date ? new Date(date) : new Date()
     });
 
@@ -90,37 +88,71 @@ export const createTransaction = async (req, res) => {
   }
 };
 
-// Existing functions...
+// FIXED: getUserTransactions function
 export const getUserTransactions = async (req, res) => {
   try {
-    const userId = req.user; // from JWT middleware
+    const userId = req.user;
     const { accountId, type, startDate, endDate } = req.query;
 
     const query = { userId };
 
     if (accountId) query.accountId = accountId;
-    if (type) query.type = type; // income / expense / transfer
+    if (type) query.type = type;
+    if (startDate && endDate)
+      query.date = { $gte: new Date(startDate), $lte: new Date(endDate) };
+
+    // Simply find transactions - no need for populate since category is stored directly
+    const transactions = await Transaction.find(query)
+      .select('description amount type category account date') // Select only the fields we need
+      .sort({ date: -1 });
+
+    res.status(200).json({ 
+      success: true,
+      transactions 
+    });
+  } catch (error) {
+    console.error("Get Transactions Error:", error);
+    res.status(500).json({ 
+      success: false,
+      message: "Internal server error" 
+    });
+  }
+};
+
+// Alternative version if you want to keep some populate for other fields:
+export const getUserTransactionsDetailed = async (req, res) => {
+  try {
+    const userId = req.user;
+    const { accountId, type, startDate, endDate } = req.query;
+
+    const query = { userId };
+
+    if (accountId) query.accountId = accountId;
+    if (type) query.type = type;
     if (startDate && endDate)
       query.date = { $gte: new Date(startDate), $lte: new Date(endDate) };
 
     const transactions = await Transaction.find(query)
-      .populate("accountId", "name")
-      .populate("sourceId", "name")
-      .populate("destinationId", "name")
-      .populate("fromAccountId", "name")
-      .populate("toAccountId", "name")
-      .sort({ date: -1 }); // latest first
+      .populate("accountId", "name balance") // Only populate account info if needed
+      .select('description amount type category account date') // Ensure category and account are included
+      .sort({ date: -1 });
 
-    res.status(200).json({ transactions });
+    res.status(200).json({ 
+      success: true,
+      transactions 
+    });
   } catch (error) {
     console.error("Get Transactions Error:", error);
-    res.status(500).json({ message: "Internal server error" });
+    res.status(500).json({ 
+      success: false,
+      message: "Internal server error" 
+    });
   }
 };
 
 export const getMonthlyIncomeVsExpense = async (req, res) => {
   try {
-    const userId = req.user; // from JWT middleware
+    const userId = req.user;
     const { month } = req.query;
 
     if (!month) {
@@ -160,7 +192,7 @@ export const getMonthlyIncomeVsExpense = async (req, res) => {
 
 export const getDailySummary = async (req, res) => {
   try {
-    const userId = req.user; // from JWT middleware
+    const userId = req.user;
     const { month } = req.query;
 
     if (!month) {
