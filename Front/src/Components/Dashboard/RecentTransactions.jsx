@@ -1,83 +1,136 @@
 // src/Components/Dashboard/RecentTransactions.jsx
 import React from "react";
 
-function RecentTransactions({ transactions }) {
+function RecentTransactions({ transactions, showViewAll = false, onViewAll }) {
+  const formatDate = (dateString) => {
+    return new Date(dateString).toLocaleDateString("en-US", {
+      month: "short",
+      day: "numeric",
+      year: "numeric",
+    });
+  };
+
+  const formatAmount = (amount, type) => {
+    const formatted = typeof amount === 'number' ? amount.toFixed(2) : parseFloat(amount || 0).toFixed(2);
+    return type === "income" ? `+$${formatted}` : `-$${formatted}`;
+  };
+
   return (
-    <div className="bg-white rounded-2xl shadow-lg p-6">
+    <div className="bg-white rounded-2xl shadow-sm border border-gray-100 p-6">
       <div className="flex justify-between items-center mb-6">
-        <h3 className="text-xl font-bold text-gray-900">Recent Transactions</h3>
-        <button className="text-blue-600 hover:text-blue-700 font-medium">View All</button>
-      </div>
-      {!transactions || transactions.length === 0 ? (
-        <div className="text-center py-8">
-          <svg
-            className="w-16 h-16 text-gray-400 mx-auto mb-4"
-            fill="none"
-            stroke="currentColor"
-            viewBox="0 0 24 24"
+        <h2 className="text-xl font-bold text-gray-900">Recent Transactions</h2>
+        {showViewAll && (
+          <button
+            onClick={onViewAll}
+            className="text-blue-600 hover:text-blue-700 font-medium text-sm flex items-center space-x-1 transition-colors"
           >
-            <path
-              strokeLinecap="round"
-              strokeLinejoin="round"
-              strokeWidth={2}
-              d="M9 17v-2m3 2v-4m3 4v-6m2 10H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z"
-            />
-          </svg>
-          <p className="text-gray-600">No transactions found.</p>
-          <p className="text-sm text-gray-500 mt-2">Start by adding your first transaction!</p>
+            <span>See All</span>
+            <svg
+              className="w-4 h-4"
+              fill="none"
+              stroke="currentColor"
+              viewBox="0 0 24 24"
+            >
+              <path
+                strokeLinecap="round"
+                strokeLinejoin="round"
+                strokeWidth={2}
+                d="M9 5l7 7-7 7"
+              />
+            </svg>
+          </button>
+        )}
+      </div>
+
+      {transactions.length === 0 ? (
+        <div className="text-center py-8">
+          <div className="w-16 h-16 bg-gray-100 rounded-full flex items-center justify-center mx-auto mb-4">
+            <svg
+              className="w-8 h-8 text-gray-400"
+              fill="none"
+              stroke="currentColor"
+              viewBox="0 0 24 24"
+            >
+              <path
+                strokeLinecap="round"
+                strokeLinejoin="round"
+                strokeWidth={2}
+                d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z"
+              />
+            </svg>
+          </div>
+          <p className="text-gray-500 font-medium">No transactions yet</p>
+          <p className="text-gray-400 text-sm mt-1">
+            Add your first transaction to see it here
+          </p>
         </div>
       ) : (
-        <div className="space-y-4 overflow-auto max-h-96">
-          {transactions.slice(0, 5).map((trx) => (
+        <div className="space-y-4">
+          {transactions.map((transaction, index) => (
             <div
-              key={trx._id}
-              className="flex items-center justify-between p-4 hover:bg-gray-50 rounded-lg transition-colors border border-gray-100"
+              key={transaction._id || index}
+              className="flex items-center justify-between p-4 bg-gray-50 rounded-xl hover:bg-gray-100 transition-colors"
             >
               <div className="flex items-center space-x-4">
                 <div
                   className={`w-10 h-10 rounded-full flex items-center justify-center ${
-                    trx.type === "income" ? "bg-green-100" : "bg-red-100"
+                    transaction.type === "income"
+                      ? "bg-green-100 text-green-600"
+                      : "bg-red-100 text-red-600"
                   }`}
                 >
-                  <svg
-                    className={`w-5 h-5 ${
-                      trx.type === "income" ? "text-green-600" : "text-red-600"
-                    }`}
-                    fill="none"
-                    stroke="currentColor"
-                    viewBox="0 0 24 24"
-                  >
-                    {trx.type === "income" ? (
+                  {transaction.type === "income" ? (
+                    <svg
+                      className="w-5 h-5"
+                      fill="none"
+                      stroke="currentColor"
+                      viewBox="0 0 24 24"
+                    >
                       <path
                         strokeLinecap="round"
                         strokeLinejoin="round"
                         strokeWidth={2}
-                        d="M12 8c-1.657 0-3 .895-3 2s1.343 2 3 2 3 .895 3 2-1.343 2-3 2m0-8c1.11 0 2.08.402 2.599 1M12 8V7m0 1v8m0 0v1m0-1c-1.11 0-2.08-.402-2.599-1"
+                        d="M12 19l9 2-9-18-9 18 9-2zm0 0v-8"
                       />
-                    ) : (
+                    </svg>
+                  ) : (
+                    <svg
+                      className="w-5 h-5"
+                      fill="none"
+                      stroke="currentColor"
+                      viewBox="0 0 24 24"
+                    >
                       <path
                         strokeLinecap="round"
                         strokeLinejoin="round"
                         strokeWidth={2}
-                        d="M15 17h5l-1.405-1.405A2.032 2.032 0 0118 14.158V11a6.002 6.002 0 00-4-5.659V5a2 2 0 10-4 0v.341C7.67 6.165 6 8.388 6 11v3.159c0 .538-.214 1.055-.595 1.436L4 17h5m6 0v1a3 3 0 11-6 0v-1m6 0H9"
+                        d="M19 14l-7 7m0 0l-7-7m7 7V3"
                       />
-                    )}
-                  </svg>
+                    </svg>
+                  )}
                 </div>
                 <div>
-                  <p className="font-medium text-gray-900">{trx.description || "-"}</p>
-                  <p className="text-sm text-gray-500">
-                    {trx.category} • {new Date(trx.date).toLocaleDateString()}
+                  <p className="font-medium text-gray-900">
+                    {transaction.description}
                   </p>
-                  <p className="text-xs text-gray-400 italic">Account: {trx.account || "Not specified"}</p>
+                  <p className="text-sm text-gray-500">
+                    {transaction.category} • {formatDate(transaction.date)}
+                  </p>
                 </div>
               </div>
-              <div
-                className={`text-right font-semibold ${
-                  trx.type === "income" ? "text-green-600" : "text-red-600"
-                }`}
-              >
-                {trx.type === "income" ? "+" : "-"}${trx.amount.toFixed(2)}
+              <div className="text-right">
+                <p
+                  className={`font-semibold ${
+                    transaction.type === "income"
+                      ? "text-green-600"
+                      : "text-red-600"
+                  }`}
+                >
+                  {formatAmount(transaction.amount, transaction.type)}
+                </p>
+                <p className="text-xs text-gray-500 capitalize">
+                  {transaction.account?.toLowerCase()}
+                </p>
               </div>
             </div>
           ))}

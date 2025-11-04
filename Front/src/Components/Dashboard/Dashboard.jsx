@@ -6,6 +6,8 @@ import Expense from "./ExpenseCard.jsx";
 import Profit from "./ProfitCard.jsx";
 import MyWallet from "./MyWallet.jsx";
 import RecentTransactions from "./RecentTransactions.jsx";
+import Transactions from "./Transactions.jsx";
+import Analytics from "./Analytics.jsx";
 
 function Dashboard() {
   const [userData, setUserData] = useState(null);
@@ -103,112 +105,112 @@ function Dashboard() {
     setShowAddModal(true);
   };
 
- const submitTransaction = async () => {
-  if (!newTransaction.account) {
-    alert("Please select an account");
-    return;
-  }
-  if (!newTransaction.category) {
-    alert("Please select a category");
-    return;
-  }
+  const submitTransaction = async () => {
+    if (!newTransaction.account) {
+      alert("Please select an account");
+      return;
+    }
+    if (!newTransaction.category) {
+      alert("Please select a category");
+      return;
+    }
 
-  const token = localStorage.getItem("token");
-  console.log("🔑 Token:", token);
-  console.log("📤 Original data:", newTransaction);
+    const token = localStorage.getItem("token");
+    console.log("🔑 Token:", token);
+    console.log("📤 Original data:", newTransaction);
 
-  try {
-    // Fix account name to match the enum in Transaction model
-    const accountNameMap = {
-      'CASH': 'Cash',
-      'CARD': 'Card', 
-      'SAVINGS': 'Savings'
-    };
+    try {
+      // Fix account name to match the enum in Transaction model
+      const accountNameMap = {
+        'CASH': 'Cash',
+        'CARD': 'Card', 
+        'SAVINGS': 'Savings'
+      };
 
-    const correctAccountName = accountNameMap[newTransaction.account] || newTransaction.account;
+      const correctAccountName = accountNameMap[newTransaction.account] || newTransaction.account;
 
-    // Prepare transaction data for the transactions endpoint
-    const transactionData = {
-      description: newTransaction.description,
-      amount: parseFloat(newTransaction.amount),
-      type: modalType, // "income" or "expense"
-      category: newTransaction.category,
-      account: correctAccountName, // Must be "Cash", "Card", or "Savings"
-      date: new Date().toISOString(),
-    };
+      // Prepare transaction data for the transactions endpoint
+      const transactionData = {
+        description: newTransaction.description,
+        amount: parseFloat(newTransaction.amount),
+        type: modalType, // "income" or "expense"
+        category: newTransaction.category,
+        account: correctAccountName, // Must be "Cash", "Card", or "Savings"
+        date: new Date().toISOString(),
+      };
 
-    console.log("🎯 Final data to send:", transactionData);
+      console.log("🎯 Final data to send:", transactionData);
 
-    // Use the transactions endpoint (not income/expense endpoints)
-    const endpoint = "http://localhost:4000/api/transactions";
+      // Use the transactions endpoint (not income/expense endpoints)
+      const endpoint = "http://localhost:4000/api/transactions";
 
-    console.log("📡 Sending to endpoint:", endpoint);
+      console.log("📡 Sending to endpoint:", endpoint);
 
-    const response = await axios.post(endpoint, transactionData, {
-      headers: {
-        Authorization: `Bearer ${token}`,
-        "Content-Type": "application/json",
-      },
-    });
+      const response = await axios.post(endpoint, transactionData, {
+        headers: {
+          Authorization: `Bearer ${token}`,
+          "Content-Type": "application/json",
+        },
+      });
 
-    console.log("✅ Success response:", response.data);
+      console.log("✅ Success response:", response.data);
 
-    // Update local state with the new transaction
-    const newTransactionData = response.data.transaction || response.data;
-    setTransactions((prev) => [newTransactionData, ...prev]);
-    setShowAddModal(false);
+      // Update local state with the new transaction
+      const newTransactionData = response.data.transaction || response.data;
+      setTransactions((prev) => [newTransactionData, ...prev]);
+      setShowAddModal(false);
 
-    // Update wallet balances
-    const amt = parseFloat(newTransaction.amount);
-    const acc = newTransaction.account;
-    setWalletBalances((prev) => ({
-      ...prev,
-      [acc]: modalType === "income" ? prev[acc] + amt : prev[acc] - amt,
-    }));
-
-    // Update overall balance
-    if (userData) {
-      setUserData((prev) => ({
+      // Update wallet balances
+      const amt = parseFloat(newTransaction.amount);
+      const acc = newTransaction.account;
+      setWalletBalances((prev) => ({
         ...prev,
-        overallBalance:
-          modalType === "income"
-            ? prev.overallBalance + amt
-            : prev.overallBalance - amt,
+        [acc]: modalType === "income" ? prev[acc] + amt : prev[acc] - amt,
       }));
-    }
 
-    // Reset form
-    setNewTransaction({
-      description: "",
-      amount: "",
-      category: "",
-      type: "income",
-      account: "",
-    });
+      // Update overall balance
+      if (userData) {
+        setUserData((prev) => ({
+          ...prev,
+          overallBalance:
+            modalType === "income"
+              ? prev.overallBalance + amt
+              : prev.overallBalance - amt,
+        }));
+      }
 
-  } catch (error) {
-    console.error("❌ Full error object:", error);
-    console.error("❌ Error response data:", error.response?.data);
-    console.error("❌ Error status:", error.response?.status);
-    
-    if (error.response?.data) {
-      console.error("❌ Complete server response:", JSON.stringify(error.response.data, null, 2));
-    }
+      // Reset form
+      setNewTransaction({
+        description: "",
+        amount: "",
+        category: "",
+        type: "income",
+        account: "",
+      });
 
-    const serverMessage = error.response?.data?.message || error.response?.data?.error;
-    
-    if (serverMessage?.includes("Account not found")) {
-      alert(`Account Error: The account "${newTransaction.account}" was not found.\n\nPlease use: Cash, Card, or Savings`);
-    } else if (serverMessage?.includes("required")) {
-      alert(`Validation Error: ${serverMessage}\n\nPlease fill all required fields.`);
-    } else {
-      alert(
-        "Failed to add transaction: " + 
-        (serverMessage || error.message || "Unknown error")
-      );
+    } catch (error) {
+      console.error("❌ Full error object:", error);
+      console.error("❌ Error response data:", error.response?.data);
+      console.error("❌ Error status:", error.response?.status);
+      
+      if (error.response?.data) {
+        console.error("❌ Complete server response:", JSON.stringify(error.response.data, null, 2));
+      }
+
+      const serverMessage = error.response?.data?.message || error.response?.data?.error;
+      
+      if (serverMessage?.includes("Account not found")) {
+        alert(`Account Error: The account "${newTransaction.account}" was not found.\n\nPlease use: Cash, Card, or Savings`);
+      } else if (serverMessage?.includes("required")) {
+        alert(`Validation Error: ${serverMessage}\n\nPlease fill all required fields.`);
+      } else {
+        alert(
+          "Failed to add transaction: " + 
+          (serverMessage || error.message || "Unknown error")
+        );
+      }
     }
-  }
-};
+  };
 
   const income = transactions
     .filter((t) => t.type === "income")
@@ -217,6 +219,9 @@ function Dashboard() {
     .filter((t) => t.type === "expense")
     .reduce((sum, t) => sum + t.amount, 0);
   const profit = income - expenses;
+
+  // Get only the last 5 transactions for the dashboard
+  const recentTransactions = transactions.slice(0, 5);
 
   const categorySpending = transactions
     .filter((t) => t.type === "expense")
@@ -286,6 +291,10 @@ function Dashboard() {
     },
   };
 
+  const handleViewAllTransactions = () => {
+    setActiveTab("transactions");
+  };
+
   if (loading)
     return (
       <div className="min-h-screen flex items-center justify-center bg-gradient-to-br from-slate-50 to-blue-50">
@@ -330,6 +339,85 @@ function Dashboard() {
         </div>
       </div>
     );
+
+  // Render different content based on active tab
+  const renderTabContent = () => {
+    switch (activeTab) {
+      case "overview":
+        return (
+          <>
+            {/* Welcome Section */}
+            <div className="bg-gradient-to-r from-blue-600 to-purple-600 rounded-2xl p-8 text-white shadow-xl flex justify-between items-center">
+              <div>
+                <h1 className="text-3xl font-bold mb-2">
+                  Welcome back, {userData?.name || "User"}!
+                </h1>
+                <p className="text-blue-100 opacity-90">
+                  Here's your financial overview for{" "}
+                  {new Date().toLocaleDateString("en-US", {
+                    month: "long",
+                    year: "numeric",
+                  })}
+                </p>
+              </div>
+              <div className="text-right">
+                <p className="text-blue-200 text-sm">Current Balance</p>
+                <p className="text-3xl font-bold text-white">
+                  ${userData?.overallBalance?.toFixed(2) || "0.00"}
+                </p>
+              </div>
+            </div>
+
+            {/* Financial Overview Cards */}
+            <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
+              <Income income={income} onAddIncome={() => handleAddTransaction("income")} />
+              <Expense
+                expenses={expenses}
+                onAddExpense={() => handleAddTransaction("expense")}
+              />
+              <Profit profit={profit} />
+            </div>
+
+            {/* My Wallet Section */}
+            <MyWallet
+              walletOpen={walletOpen}
+              setWalletOpen={setWalletOpen}
+              walletBalances={walletBalances}
+              accountConfig={accountConfig}
+              userData={userData}
+            />
+
+            {/* Recent Transactions - Show only last 5 */}
+            <RecentTransactions 
+              transactions={recentTransactions} 
+              showViewAll={transactions.length > 5}
+              onViewAll={handleViewAllTransactions}
+            />
+          </>
+        );
+      
+      case "transactions":
+        return (
+          <Transactions 
+            transactions={transactions}
+            onAddTransaction={handleAddTransaction}
+          />
+        );
+      
+      case "analytics":
+        return (
+          <Analytics 
+            transactions={transactions}
+            income={income}
+            expenses={expenses}
+            profit={profit}
+          />
+        );
+      
+      default:
+        return null;
+    }
+  };
 
   return (
     <div className="min-h-screen bg-gradient-to-br from-slate-50 to-blue-50">
@@ -499,49 +587,7 @@ function Dashboard() {
 
       {/* Main Content */}
       <main className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8 space-y-8">
-        {/* Welcome Section */}
-        <div className="bg-gradient-to-r from-blue-600 to-purple-600 rounded-2xl p-8 text-white shadow-xl flex justify-between items-center">
-          <div>
-            <h1 className="text-3xl font-bold mb-2">
-              Welcome back, {userData?.name || "User"}!
-            </h1>
-            <p className="text-blue-100 opacity-90">
-              Here's your financial overview for{" "}
-              {new Date().toLocaleDateString("en-US", {
-                month: "long",
-                year: "numeric",
-              })}
-            </p>
-          </div>
-          <div className="text-right">
-            <p className="text-blue-200 text-sm">Current Balance</p>
-            <p className="text-3xl font-bold text-white">
-              ${userData?.overallBalance?.toFixed(2) || "0.00"}
-            </p>
-          </div>
-        </div>
-
-        {/* Financial Overview Cards */}
-        <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
-          <Income income={income} onAddIncome={() => handleAddTransaction("income")} />
-          <Expense
-            expenses={expenses}
-            onAddExpense={() => handleAddTransaction("expense")}
-          />
-          <Profit profit={profit} />
-        </div>
-
-        {/* My Wallet Section */}
-        <MyWallet
-          walletOpen={walletOpen}
-          setWalletOpen={setWalletOpen}
-          walletBalances={walletBalances}
-          accountConfig={accountConfig}
-          userData={userData}
-        />
-
-        {/* Recent Transactions */}
-        <RecentTransactions transactions={transactions} />
+        {renderTabContent()}
       </main>
     </div>
   );
